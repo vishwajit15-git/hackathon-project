@@ -24,9 +24,9 @@ const signup = async (req, res) => {
 
     const { name, email, password, phone, role } = req.body;
 
-    // PER USER REQUEST: Admin and User can register independently.
-    // Personnel roles (Volunteer, Police, Medical) must be created by an Admin.
-    const assignedRole = ['admin', 'user'].includes(role) ? role : 'user';
+    // SECURITY: Only 'user' (devotee) role is allowed for self-registration.
+    // All personnel roles (admin, volunteer, police, medical) MUST be created by an Admin.
+    const assignedRole = 'user';
 
     // 1. Create user in Firebase Auth
     const userRecord = await global.adminAuth.createUser({
@@ -159,7 +159,7 @@ const adminCreateUser = async (req, res) => {
   try {
     const { name, email, password, phone, role } = req.body;
 
-    if (!['volunteer', 'police', 'admin', 'user'].includes(role)) {
+    if (!['volunteer', 'police', 'medical', 'admin', 'user'].includes(role)) {
       return res.status(400).json({ success: false, message: 'Invalid role specified.' });
     }
 

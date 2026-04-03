@@ -71,6 +71,7 @@ const StaffManager = () => {
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <input className="input-control" name="name" placeholder="Full Name" value={staffData.name} onChange={handleStaffChange} required style={{ flex: 1 }} />
               <input className="input-control" name="email" type="email" placeholder="Email" value={staffData.email} onChange={handleStaffChange} required style={{ flex: 1 }} />
+              <input className="input-control" name="password" type="text" placeholder="Password" value={staffData.password} onChange={handleStaffChange} required style={{ flex: 1 }} title="Password for the user account" />
             </div>
             <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
               <input className="input-control" name="phone" placeholder="Phone Number" value={staffData.phone} onChange={handleStaffChange} required style={{ flex: 1 }} />

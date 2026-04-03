@@ -87,7 +87,7 @@ def stream_video(source_input, target_zone, show_heatmap, show_grid, show_boxes,
                 "currentCount": count,
                 "totalCapacity": 2000,
                 "source": "camera"
-            }, headers={"x-api-key": "ml-crowd-secret"}, timeout=1)
+            }, headers={"x-api-key": "ml-crowd-dev-secret-2024"}, timeout=1)
         except Exception:
             pass
     try:
@@ -209,9 +209,73 @@ with gr.Blocks(title="Crowd Management System", theme=gr.themes.Soft()) as demo:
         outputs=[source_box]
     )
 
+def run_multi_zone_daemon():
+    print("\n[Daemon] Starting background multi-zone telemetry sync...")
+    import requests
+    API_URL = "http://localhost:5000/api/crowd/update"
+    API_KEY = "ml-crowd-dev-secret-2024"
+    ZONES = {
+        "ZONE_A": "video/Zone_A.mp4",
+        "ZONE_B": "video/Zone_B.mp4",
+        "ZONE_C": "video/Zone_C.mp4"
+    }
+
+    bg_detector = PersonDetector()
+    bg_density_calc = DensityCalculator()
+    
+    captures = {}
+    frame_counters = {}
+    last_push_time = {}
+    for zone, video_path in ZONES.items():
+        base_dir = os.path.dirname(os.path.abspath(__file__))
+        full_path = os.path.join(base_dir, video_path)
+        if os.path.exists(full_path):
+            cap = cv2.VideoCapture(full_path)
+            if cap.isOpened():
+                captures[zone] = cap
+                frame_counters[zone] = 0
+                last_push_time[zone] = 0
+                print(f"[Daemon] Attached {zone}")
+    
+    while True:
+        try:
+            for zone, cap in captures.items():
+                ret, frame = cap.read()
+                if not ret:
+                    cap.set(cv2.CAP_PROP_POS_FRAMES, 0)
+                    ret, frame = cap.read()
+                    if not ret: continue
+
+                frame_counters[zone] += 1
+                if frame_counters[zone] % (FRAME_SKIP + 1) == 0 or frame_counters[zone] == 1:
+                    frame = cv2.resize(frame, (FRAME_WIDTH, FRAME_HEIGHT))
+                    boxes, _ = bg_detector.detect(frame)
+                    density_result = bg_density_calc.compute(boxes)
+                    current_count = density_result.get('total_people', 0)
+                    
+                    if time.time() - last_push_time[zone] >= 3.0:
+                        try:
+                            # Silent background post
+                            requests.post(API_URL, json={
+                                "zone": zone,
+                                "currentCount": int(current_count),
+                                "totalCapacity": 2000,
+                                "source": "camera"
+                            }, headers={"x-api-key": API_KEY}, timeout=2)
+                        except Exception:
+                            pass
+                        last_push_time[zone] = time.time()
+            time.sleep(0.01)
+        except Exception:
+            time.sleep(1)
+
 if __name__ == "__main__":
+    import threading
+    daemon_thread = threading.Thread(target=run_multi_zone_daemon, daemon=True)
+    daemon_thread.start()
+
     print(f"\n{'='*70}")
-    print("  Crowd Management System — FULL FORCE MODE")
+    print("  Crowd Management System — FULL FORCE MODE (Multi-Zone Active)")
     print(f"  UI running at http://localhost:{GRADIO_PORT}")
     print(f"{'='*70}\n")
     demo.launch(server_port=GRADIO_PORT, share=GRADIO_SHARE, inbrowser=True)
