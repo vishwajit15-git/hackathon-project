@@ -53,7 +53,8 @@ const MissingPersons = () => {
       if (res.data.status === 'found') {
         showToast(`Match Found! Person located in ${res.data.mlResult.zone} with ${Math.round(res.data.mlResult.confidence * 100)}% confidence.`, "success");
       } else {
-        showToast("ML Search active. No immediate match found in current frames.", "info");
+        const note = res.data.mlResult?.note || "No immediate match found in current frames.";
+        showToast(`AI Scan: ${note}`, "info");
       }
       fetchCases();
     } catch (err) {
@@ -78,12 +79,22 @@ const MissingPersons = () => {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '2rem' }}>
         <h2>Missing Persons Board</h2>
-        <button 
-          className="btn btn-primary"
-          onClick={() => setShowReportForm(!showReportForm)}
-        >
-          <UserPlus size={18} /> Report Missing
-        </button>
+        <div style={{ display: 'flex', gap: '1rem' }}>
+          {canTriggerML && (
+            <button 
+              className="btn btn-outline"
+              onClick={() => window.open('http://localhost:7861', '_blank')}
+            >
+              <Activity size={18} /> AI Scan Monitor
+            </button>
+          )}
+          <button 
+            className="btn btn-primary"
+            onClick={() => setShowReportForm(!showReportForm)}
+          >
+            <UserPlus size={18} /> Report Missing
+          </button>
+        </div>
       </div>
 
       {showReportForm && (
