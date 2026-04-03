@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import api from '../../services/api';
 import { useSocket } from '../../context/SocketContext';
 import { useNotifications } from '../../context/NotificationContext';
-import { ShieldAlert, Users, Volume2, History, Edit3, X } from 'lucide-react';
+import { ShieldAlert, Users, Volume2, History, X, Scan, Settings } from 'lucide-react';
 
 const ZONES = ['A', 'B', 'C'];
 
@@ -13,8 +13,8 @@ const AdminDash = () => {
   const [voiceText, setVoiceText] = useState("Please remain calm and move slowly towards exit gate.");
   const [showHistory, setShowHistory] = useState(null);
   const [historyData, setHistoryData] = useState([]);
-  const [showOverride, setShowOverride] = useState(null);
-  const [overrideForm, setOverrideForm] = useState({ currentCount: 0, totalCapacity: 5000 });
+  const [showCapacityModal, setShowCapacityModal] = useState(null);
+  const [newCapacity, setNewCapacity] = useState(0);
   const [activeHeatmapZone, setActiveHeatmapZone] = useState('ALL');
   
   const { socket } = useSocket();
@@ -183,23 +183,28 @@ const AdminDash = () => {
       showToast("Failed to fetch history", "error");
     }
   };
-
-  const handleOverrideSubmit = async (e) => {
+  
+  const handleUpdateCapacity = async (e) => {
     e.preventDefault();
+    const zone = showCapacityModal;
+    const currentData = crowdData.find(z => z.zone === zone);
+    
     try {
       await api.post('/crowd/update', {
-        zone: showOverride,
-        currentCount: parseInt(overrideForm.currentCount),
-        totalCapacity: parseInt(overrideForm.totalCapacity),
-        source: 'manual'
+        zone: zone,
+        currentCount: currentData.currentCount,
+        totalCapacity: parseInt(newCapacity),
+        source: 'admin'
       });
-      showToast('Crowd data updated manually', 'success');
-      setShowOverride(null);
+      showToast(`Capacity for Zone ${zone.split('_')[1]} updated to ${newCapacity}`, 'success');
+      setShowCapacityModal(null);
       fetchDashboardData();
     } catch (err) {
-      showToast('Failed to update crowd data', 'error');
+      showToast('Failed to update capacity', 'error');
     }
   };
+
+
 
   if (loading) return <div className="p-4 text-center">Loading Command Center...</div>;
 
@@ -274,7 +279,45 @@ const AdminDash = () => {
                   </div>
                   
                   <div style={{ marginBottom: '1.5rem' }}>
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginBottom: '0.25rem', textTransform: 'uppercase' }}>Current Density</div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>CCTV Feed</div>
+                      <select className="input-control" style={{ padding: '0.2rem 0.5rem', fontSize: '0.75rem', width: 'auto' }} defaultValue={`Zone_${zoneLetter}.mp4`}>
+                        <option value="Zone_A.mp4">Camera A (Sangam)</option>
+                        <option value="Zone_B.mp4">Camera B (Triveni)</option>
+                        <option value="Zone_C.mp4">Camera C (Ghat)</option>
+                      </select>
+                    </div>
+
+                    <div style={{ position: 'relative', width: '100%', height: '150px', background: '#000', borderRadius: '4px', overflow: 'hidden', marginBottom: '1rem', border: '1px solid rgba(255,255,255,0.1)' }}>
+                      <video 
+                        src={`http://localhost:5000/api/videos/Zone_${zoneLetter}.mp4`} 
+                        autoPlay 
+                        loop 
+                        muted 
+                        style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: 0.85 }} 
+                      />
+                      <div style={{
+                        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                        background: isCritical ? 'radial-gradient(circle, rgba(220,0,0,0.5) 0%, transparent 60%)' : 'radial-gradient(circle, rgba(0,200,0,0.15) 0%, transparent 70%)',
+                        mixBlendMode: 'screen', pointerEvents: 'none'
+                      }}></div>
+                      <div style={{ position: 'absolute', bottom: '0.5rem', left: '0.5rem', background: 'rgba(0,0,0,0.7)', padding: '0.2rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                        <div className="pulse-accent" style={{width: '6px', height: '6px', background: 'red', borderRadius: '50%'}}></div> REC
+                      </div>
+                      <div style={{ position: 'absolute', top: '0.5rem', right: '0.5rem', background: 'rgba(67, 97, 238, 0.7)', padding: '0.2rem 0.4rem', borderRadius: '4px', fontSize: '0.65rem' }}>
+                        <Scan size={10} style={{display: 'inline', marginRight: '4px'}}/> ML Tracking
+                      </div>
+                    </div>
+
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.25rem' }}>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase' }}>Current Density</div>
+                      <button 
+                        onClick={() => { setShowCapacityModal(zoneKey); setNewCapacity(data.totalCapacity); }} 
+                        style={{ background: 'none', border: 'none', color: 'var(--text-accent)', cursor: 'pointer', padding: '0.25rem' }}
+                      >
+                        <Settings size={14} />
+                      </button>
+                    </div>
                     <div style={{ fontSize: '1.25rem', fontWeight: '600' }}>{data.currentCount.toLocaleString()} <span style={{ fontSize: '0.875rem', fontWeight: '400', color: 'var(--text-muted)' }}>/ {data.totalCapacity.toLocaleString()}</span></div>
                     <DensityGauge count={data.currentCount} capacity={data.totalCapacity} risk={data.riskLevel} />
                   </div>
@@ -282,9 +325,6 @@ const AdminDash = () => {
                   <div style={{ display: 'flex', gap: '0.5rem' }}>
                     <button onClick={() => triggerStampedeAlert(zoneKey)} className="btn btn-outline" style={{ border: 'none', background: 'rgba(208, 0, 0, 0.1)', color: 'var(--status-critical)', padding: '0.5rem', flex: 1 }} title="Trigger Protocol">
                       <ShieldAlert size={16} />
-                    </button>
-                    <button onClick={() => { setShowOverride(zoneKey); setOverrideForm({ currentCount: data.currentCount, totalCapacity: data.totalCapacity }); }} className="btn btn-outline" style={{ padding: '0.5rem', flex: 1 }} title="Override">
-                      <Edit3 size={16} />
                     </button>
                     <button onClick={() => fetchHistory(zoneKey)} className="btn btn-outline" style={{ padding: '0.5rem', flex: 1 }} title="History">
                       <History size={16} />
@@ -372,23 +412,29 @@ const AdminDash = () => {
         </div>
       )}
 
-      {/* Override Modal */}
-      {showOverride && (
+
+      {/* Capacity Modal */}
+      {showCapacityModal && (
         <div className="modal-overlay">
           <div className="modal-content">
-            <h3 style={{ marginBottom: '1.5rem' }}>Manual Override: {showOverride.split('_')[1]}</h3>
-            <form onSubmit={handleOverrideSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+            <h3 style={{ marginBottom: '1rem' }}>Adjust Zone {showCapacityModal.split('_')[1]} Capacity</h3>
+            <p style={{ color: 'var(--text-muted)', fontSize: '0.875rem', marginBottom: '1.5rem' }}>
+              Setting a lower capacity will trigger high-risk alerts at lower headcounts.
+            </p>
+            <form onSubmit={handleUpdateCapacity} style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
               <div className="input-group">
-                <label className="input-label">Current Headcount</label>
-                <input type="number" className="input-control" value={overrideForm.currentCount} onChange={e => setOverrideForm({...overrideForm, currentCount: e.target.value})} required />
-              </div>
-              <div className="input-group">
-                <label className="input-label">Zone Capacity</label>
-                <input type="number" className="input-control" value={overrideForm.totalCapacity} onChange={e => setOverrideForm({...overrideForm, totalCapacity: e.target.value})} required />
+                <label className="input-label">Total Maximum Capacity</label>
+                <input 
+                  type="number" 
+                  className="input-control" 
+                  value={newCapacity} 
+                  onChange={e => setNewCapacity(e.target.value)} 
+                  required 
+                />
               </div>
               <div className="modal-actions">
-                <button type="submit" className="btn btn-primary">Update Command Center</button>
-                <button type="button" className="btn btn-outline" onClick={() => setShowOverride(null)}>Cancel</button>
+                <button type="submit" className="btn btn-primary">Save Capacity</button>
+                <button type="button" className="btn btn-outline" onClick={() => setShowCapacityModal(null)}>Cancel</button>
               </div>
             </form>
           </div>

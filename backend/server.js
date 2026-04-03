@@ -32,9 +32,12 @@ const app = express();
 const httpServer = http.createServer(app);
 
 // ─── Security Middleware ───────────────────────────────────────────────────────
-app.use(helmet());
+app.use(helmet({
+  crossOriginResourcePolicy: false, // Essential for streaming video to another port (5173/5174)
+  contentSecurityPolicy: false,     // Simplifies loading external assets for local dev
+}));
 app.use(cors({
-  origin: process.env.FRONTEND_URL || '*',
+  origin: true, // Echo origin to allow any frontend port
   methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
   credentials: true,
@@ -88,6 +91,11 @@ app.use('/api/volunteer',   volunteerRoutes);
 app.use('/api/prediction',  predictionRoutes);
 app.use('/api/collision',   collisionRoutes);
 app.use('/api/voice',       voiceRoutes);
+
+// ─── Static Files (Videos) ─────────────────────────────────────────────────────
+const path = require('path');
+const videoPath = path.resolve(__dirname, '..', 'crowd', 'c2', 'redo_crowd1', 'video');
+app.use('/api/videos', express.static(videoPath));
 
 // ─── 404 Handler ───────────────────────────────────────────────────────────────
 app.use((req, res) => {

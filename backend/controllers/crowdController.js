@@ -25,16 +25,37 @@ const updateCrowd = async (req, res) => {
   try {
     const { zone, currentCount, totalCapacity, source } = req.body;
 
-    if (!zone || currentCount === undefined || !totalCapacity) {
-      return res.status(400).json({ success: false, message: 'zone, currentCount, totalCapacity are required.' });
+    if (!zone || currentCount === undefined) {
+      return res.status(400).json({ success: false, message: 'zone and currentCount are required.' });
     }
 
-    const { density, riskLevel, estimatedWaitMinutes } = computeCrowdMetrics(currentCount, totalCapacity);
+    const zoneKey = zone.toUpperCase();
+    const liveRef = global.db.collection('live_crowd_zones').doc(zoneKey);
+    
+    // 1. Determine the correct capacity (Persistent Manual Overrides)
+    let finalCapacity = parseInt(totalCapacity);
+    
+    if (source !== 'admin') {
+      // If NOT an admin update, try to preserve the existing capacity from the DB
+      const existingDoc = await liveRef.get();
+      if (existingDoc.exists) {
+        finalCapacity = existingDoc.data().totalCapacity || finalCapacity || 2000;
+      } else {
+        // Fallback for first-time init if not provided
+        finalCapacity = finalCapacity || 2000;
+      }
+    }
+
+    if (!finalCapacity) {
+      return res.status(400).json({ success: false, message: 'totalCapacity is required for new zones.' });
+    }
+
+    const { density, riskLevel, estimatedWaitMinutes } = computeCrowdMetrics(currentCount, finalCapacity);
 
     const crowdData = {
-      zone: zone.toUpperCase(),
+      zone: zoneKey,
       currentCount,
-      totalCapacity,
+      totalCapacity: finalCapacity,
       density,
       riskLevel,
       estimatedWaitMinutes,
@@ -46,7 +67,6 @@ const updateCrowd = async (req, res) => {
     const batch = global.db.batch();
     
     // 1. Update the live zone state (always 1 document per zone)
-    const liveRef = global.db.collection('live_crowd_zones').doc(zone.toUpperCase());
     batch.set(liveRef, crowdData);
 
     // 2. Append to history collection for ML
@@ -58,7 +78,7 @@ const updateCrowd = async (req, res) => {
     // Emit real-time update
     emitCrowdUpdate(zone, {
       currentCount,
-      totalCapacity,
+      totalCapacity: finalCapacity,
       density,
       riskLevel,
       estimatedWaitMinutes,
