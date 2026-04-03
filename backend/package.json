@@ -1,0 +1,35 @@
+{
+  "name": "smart-crowd-management-backend",
+  "version": "1.0.0",
+  "description": "Production-grade backend for Smart Crowd Management & Slot Booking System",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "nodemon server.js",
+    "lint": "eslint ."
+  },
+  "dependencies": {
+    "@socket.io/redis-adapter": "^8.3.0",
+    "axios": "^1.6.8",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.5",
+    "express": "^4.18.3",
+    "express-rate-limit": "^7.2.0",
+    "express-validator": "^7.0.1",
+    "firebase-admin": "^13.7.0",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
+    "qrcode": "^1.5.3",
+    "redis": "^5.11.0",
+    "socket.io": "^4.7.5",
+    "winston": "^3.12.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}

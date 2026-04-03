@@ -1,0 +1,81 @@
+version: '3.9'
+
+services:
+
+  # ── Node.js Backend ────────────────────────────────────────────────────────
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: crowd_backend
+    restart: unless-stopped
+    ports:
+      - "5000:5000"
+    environment:
+      NODE_ENV: production
+      PORT: 5000
+      # Firebase Credentials (Either populate .env or mount serviceAccountKey.json)
+      FIREBASE_API_KEY: ${FIREBASE_API_KEY}
+      ML_SERVICE_URL: http://ml_service:8000
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost:3000}
+      REDIS_URI: redis://redis:6379
+      STAMPEDE_RISK_THRESHOLD: "0.75"
+    depends_on:
+      redis:
+        condition: service_healthy
+      ml_service:
+        condition: service_healthy
+    networks:
+      - crowd_network
+    volumes:
+      - backend_logs:/app/logs
+      - ./backend/serviceAccountKey.json:/app/serviceAccountKey.json:ro
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:5000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # ── Redis (Websocket Clustering) ───────────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: crowd_redis
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - crowd_network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ── ML Service Stub (Python) ──────────────────────────────────────────────
+  ml_service:
+    build:
+      context: ./ml_stub
+      dockerfile: Dockerfile
+    container_name: crowd_ml
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    networks:
+      - crowd_network
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/docs')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+# ── Networks ────────────────────────────────────────────────────────────────
+networks:
+  crowd_network:
+    driver: bridge
+
+# ── Volumes ─────────────────────────────────────────────────────────────────
+volumes:
+  backend_logs:
+    driver: local
