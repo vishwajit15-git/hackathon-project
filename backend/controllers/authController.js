@@ -23,7 +23,7 @@ const signup = async (req, res) => {
     }
 
     const { name, email, password, phone, role } = req.body;
-    
+
     // PER USER REQUEST: Admin and User can register independently.
     // Personnel roles (Volunteer, Police, Medical) must be created by an Admin.
     const assignedRole = ['admin', 'user'].includes(role) ? role : 'user';
@@ -183,6 +183,26 @@ const adminCreateUser = async (req, res) => {
       createdBy: req.user.uid,
     };
     await global.db.collection('users').doc(userRecord.uid).set(userDoc);
+
+    // Automatically assign field personnel to make them visible in UI immediately
+    if (['volunteer', 'police', 'medical', 'admin'].includes(role)) {
+      const adminFirebase = require('firebase-admin');
+      const personnelData = {
+        user: {
+          uid: userRecord.uid,
+          name: name,
+          email: email,
+          phone: phone || '',
+        },
+        zone: 'ZONE_A', // Default zone
+        location: new adminFirebase.firestore.GeoPoint(25.4358, 81.8463),
+        status: 'available',
+        currentTask: 'none',
+        role: role,
+        createdAt: adminFirebase.firestore.FieldValue.serverTimestamp(),
+      };
+      await global.db.collection('volunteers').doc(userRecord.uid).set(personnelData);
+    }
 
     logger.info(`Admin ${req.user.uid} created a new ${role}: ${email}`);
     res.status(201).json({

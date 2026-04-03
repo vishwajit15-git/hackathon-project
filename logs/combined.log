@@ -1,0 +1,7 @@
+{"level":"info","message":"🔥 Firebase Admin SDK initialized successfully.","timestamp":"2026-04-03 21:54:40"}
+{"level":"info","message":"Socket.io initialized without clustering (Local Mode)","timestamp":"2026-04-03 21:54:40"}
+{"level":"info","message":"[Socket] Crowd socket handlers registered","timestamp":"2026-04-03 21:54:40"}
+{"level":"info","message":"[Socket] Alert socket handlers registered","timestamp":"2026-04-03 21:54:40"}
+{"level":"info","message":"🚀 Server running on port 5000 [development]","timestamp":"2026-04-03 21:54:40"}
+{"level":"info","message":"📡 WebSocket server ready","timestamp":"2026-04-03 21:54:40"}
+{"level":"info","message":"🏥 Health check: http://localhost:5000/health","timestamp":"2026-04-03 21:54:40"}

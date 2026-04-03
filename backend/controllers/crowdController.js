@@ -94,6 +94,7 @@ const getCrowdStatus = async (req, res) => {
       const data = doc.data();
       return {
         _id: doc.id,
+        zone: data.zone || doc.id,
         currentCount: data.currentCount,
         totalCapacity: data.totalCapacity,
         density: data.density,
