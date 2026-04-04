@@ -19,7 +19,8 @@ const signup = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
+      const firstError = errors.array()[0].msg;
+      return res.status(400).json({ success: false, message: firstError, errors: errors.array() });
     }
 
     const { name, email, password, phone, role } = req.body;
@@ -83,7 +84,8 @@ const login = async (req, res) => {
   try {
     const errors = validationResult(req);
     if (!errors.isEmpty()) {
-      return res.status(400).json({ success: false, errors: errors.array() });
+      const firstError = errors.array()[0].msg;
+      return res.status(400).json({ success: false, message: firstError, errors: errors.array() });
     }
 
     const { email, password } = req.body;

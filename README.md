@@ -1,239 +1,90 @@
-# Smart Crowd Management & Slot Booking System
+# 🚀 Smart Crowd Management & Slot Booking System
 
-> Production-grade backend for managing **50,000–100,000 visitors/day** at large-scale crowd environments (Kumbh Mela, pilgrimage sites, stadiums).
+> A production-grade, AI-powered ecosystem designed to manage **50,000–100,000 visitors/day** in high-density environments like the Kumbh Mela, pilgrimage sites, and stadiums.
 
 ---
 
-## 🚀 Quick Start
+## 📂 Project Overview
+This project provides a real-time safety and logistics layer for large-scale human gatherings. By combining **YOLOv8 Computer Vision**, **Firebase Real-time Sync**, and **Dijkstra-based Navigation**, we create a system that prevents stampedes, locates missing persons, and optimizes pilgrim flow through digital slot booking.
 
-### 1. Local Development
-```bash
-cd backend
-cp .env.example .env        # fill in your values
-npm install
-npm run dev                 # nodemon hot-reload on :5000
+---
+
+## 🛠️ The Tech Stack (The "Why")
+
+### **Frontend: React 19 + Vite**
+- **Why?**: We chose React 19 for its improved concurrent rendering, which is essential for dashboards that receive hundreds of telemetry updates per second. **Vite** provides near-instant HMR (Hot Module Replacement) for rapid development during high-pressure hackathon cycles.
+- **Styling**: Vanilla CSS with modern Glassmorphism for a premium, high-visibility UI (Police/Admin focus).
+
+### **Backend: Node.js + Express.js**
+- **Why?**: Node's event-driven, non-blocking I/O model is perfect for handling high-frequency socket connections from CCTV sensors and mobile devices without bottlenecking the system.
+
+### **Database: Firebase Firestore**
+- **Why?**: Firestore's built-in real-time listeners allow our dashboards to update instantly as soon as the ML service detects a person or a booking is made, avoiding the lag of traditional polling.
+
+### **ML Monitoring: YOLOv8 + SAHI + OpenCV SFace**
+- **Why (YOLOv8)**: We use YOLOv8s for its state-of-the-art speed-to-accuracy ratio in real-time object detection.
+- **Why (SAHI)**: Slicing Aided Hyper Inference (Tiling) is used to detect small human figures in high-altitude or dense CCTV shots where traditional models often fail.
+- **Why (SFace)**: For missing persons, we use the SFace model for high-precision face matching that runs natively on the backend via OpenCV's DNN module.
+
+### **Real-time Pipeline: Socket.io 4**
+- **Why?**: Standard HTTP is too slow for emergency situations. Socket.io provides persistent bi-directional channels for sub-100ms telemetry delivery and mass-broadcasting alerts.
+
+### **Geo-Routing: Dijkstra Algorithm**
+- **Why?**: For stampede prevention, we need to calculate the *safest* route out of a crowded zone, not just the shortest. Our Dijkstra implementation weights zone "density" as the primary cost.
+
+---
+
+## 🚀 Key Features
+
+- **📊 Multi-Zone Crowd Monitoring**: Real-time density calculation across 10+ zones with heatmaps and vector overlays.
+- **🕵️ AI Missing Person Identification**: Visual scan monitor that identifies target individuals across surveillance feeds.
+- **🎟️ Digital Slot Booking**: Atomic booking system with QR code generation for streamlined entry-pass management.
+- **🚨 Automated Stampede Protocol**: AI-triggered evacuations with dynamic Hindi voice alerts and safe-routing guidance.
+- **👥 Role-Based Access (RBAC)**: Dedicated interfaces for Admin, Police, Medical personnel, and Volunteers.
+- **🔊 Hindi Voice Alerts**: Dynamic TTS generation for clear, emergency communication with pilgrims.
+
+---
+
+## 🏗️ Service Architecture & Port Map
+
+| Component | Port | Purpose |
+| :--- | :--- | :--- |
+| **Backend API** | `5000` | Business logic, RBAC, and Firestore interface. |
+| **Frontend Web** | `5173` | React Dashboard for staff and users. |
+| **Crowd ML Dashboard**| `7860` | Gradio interface for real-time crowd telemetry. |
+| **Person AI Tracker** | `7861` | Gradio interface for visual missing person search. |
+| **ML REST API** | `8000` | Background face-matching and detection service. |
+
+---
+
+## ⚙️ Quick Start
+
+### 1. Prerequisites
+- Node.js 24+
+- Python 3.12+ (configured in a `.venv`)
+- Firebase Service Account Key (`backend/serviceAccountKey.json`)
+
+### 2. Environment Setup
+Create a `.env` in the `backend/` directory:
+```env
+PORT=5000
+FIREBASE_SERVICE_ACCOUNT=(base64 string if not using file)
+ML_SERVICE_URL=http://localhost:8000
+ML_API_KEY=ml-crowd-dev-secret-2024
 ```
 
-### 2. Docker (Full Stack)
+### 3. Execution
+Run the following in separate terminals:
+- **Backend**: `cd backend && npm run dev`
+- **Frontend**: `cd frontend && npm run dev`
+- **ML Monitoring**: `python crowd/c2/redo_crowd1/main.py`
+- **AI Search**: `python person-detection/backend/missing_person_matcher.py`
+
+---
+
+## 🐳 Docker Deployment
 ```bash
 # From project root
-docker-compose up --build   # starts backend + MongoDB + ML stub
+docker-compose up --build
 ```
-
-Health check: `GET http://localhost:5000/health`
-
----
-
-## 🏗️ Architecture
-
-```
-Client / CCTV / ML Service
-        ↓
-  Express REST API  ←→  Firebase Firestore
-        ↓
-   Socket.io (real-time)
-        ↓
-  Python ML Stub
-```
-
----
-
-## 📁 Project Structure
-
-```
-backend/
-├── config/           # Firebase Admin, env validation
-├── middleware/        # Firebase Auth, role-based access
-├── controllers/       # Business logic handlers  
-├── routes/           # Express route groups
-├── services/         # Socket, geo (Dijkstra), voice TTS, assignment, notification
-├── utils/            # QR generator, Haversine distance, Winston logger
-├── sockets/          # Socket.io event handlers
-├── serviceAccountKey.json # Firebase Credentials
-└── server.js         # Entry point
-```
-
----
-
-## 🔐 Authentication & Roles
-
-Firebase Auth (ID Tokens). Roles: `user | admin | police | medical | volunteer`
-
-```bash
-# Signup
-POST /api/auth/signup
-{ "name": "Ravi Kumar", "email": "ravi@example.com", "password": "Password123", "role": "user" }
-
-# Login → receive Firebase ID Token
-POST /api/auth/login
-{ "email": "ravi@example.com", "password": "Password123" }
-```
-
----
-
-## 📡 API Reference
-
-### Auth
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/auth/signup` | — | Register user |
-| POST | `/api/auth/login` | — | Login, get JWT |
-| GET | `/api/auth/me` | ✅ | Current user profile |
-| PATCH | `/api/auth/update-location` | ✅ | Update GPS location |
-
-### Slots
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/slots/create` | admin | Create time slot |
-| GET | `/api/slots` | — | List slots (filter: date, zone, specialOnly) |
-| POST | `/api/slots/book` | ✅ | Book slot (atomic, returns QR) |
-| GET | `/api/slots/my-bookings` | ✅ | My bookings + QR codes |
-| DELETE | `/api/slots/cancel/:bookingId` | ✅ | Cancel booking |
-
-### Crowd
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/crowd/update` | admin/police | Update zone density → emits socket |
-| GET | `/api/crowd/status` | — | All zones status + risk summary |
-| GET | `/api/crowd/history/:zone` | admin | Historical crowd records |
-
-### Collision / Stampede
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/collision/check` | — | ML pushes risk data → triggers protocol |
-| GET | `/api/collision/risk` | admin/police | Query ML risk assessment |
-
-### Alerts
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/alerts/create` | admin/police/medical | Create + broadcast alert |
-| GET | `/api/alerts/active` | — | Active alerts |
-| PATCH | `/api/alerts/:id/resolve` | admin | Resolve alert |
-| GET | `/api/alerts/history` | admin | Paginated alert history |
-
-### Missing Person
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/missing/report` | ✅ | Report missing person |
-| GET | `/api/missing/status/:caseId` | ✅ | Case status |
-| POST | `/api/missing/search` | admin/police | Trigger ML face match |
-| GET | `/api/missing/all` | admin/police | All cases |
-
-### Volunteer Force
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/volunteer/register` | admin | Activate volunteer (UID based) |
-| GET | `/api/volunteer/all` | admin/police | List all volunteers (Sorted) |
-| PATCH | `/api/volunteer/status` | ✅ | Update availability |
-
-### Prediction & AI
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| GET | `/api/prediction/crowd` | — | 30-min crowd forecast (Public) |
-| POST | `/api/prediction/detect` | admin/police | CCTV frame detection |
-
-### Hindi Voice Alerts
-| Method | Endpoint | Auth | Description |
-|--------|----------|------|-------------|
-| POST | `/api/voice/generate` | admin/police | Dynamic Hindi TTS generation |
-| POST | `/api/voice/alert` | admin/police | Trigger pre-defined Hindi alert |
-| GET | `/api/voice/messages` | — | List Hindi templates |
-
----
-
-## 📡 Socket.io Events
-
-### Client → Server
-| Event | Payload | Description |
-|-------|---------|-------------|
-| `join:room` | `{role, userId, zone}` | Join role/user/zone rooms |
-| `crowd:manual-update` | `{zone, currentCount, totalCapacity}` | Admin crowd update |
-| `crowd:get-status` | `{zone}` | Request zone status |
-| `emergency:acknowledge` | `{alertId, acknowledgedBy, role}` | Acknowledge alert |
-| `route:request` | `{fromZone, toZone, currentDensityMap}` | Request safe route |
-| `evacuation:trigger` | `{zone, message, routes}` | Trigger zone evacuation |
-| `volunteer:zone-update` | `{volunteerId, zone}` | Update volunteer zone |
-
-### Server → Client
-| Event | Description |
-|-------|-------------|
-| `crowd:update` | Zone density changed |
-| `alert:emergency` | Emergency alert broadcast |
-| `alert:voice` | Hindi audio URL for playback |
-| `route:update` | Safe evacuation route |
-| `missing:found` | Missing person located |
-| `volunteer:task` | Task assigned to volunteer |
-| `evacuation:order` | Zone evacuation order |
-
----
-
-## 🚨 Stampede Response Flow
-
-```
-ML → POST /api/collision/check  { zone: "C", riskScore: 0.82 }
-      ↓
-  riskScore > 0.75 → STAMPEDE PROTOCOL:
-  1. Create Alert (severity 5, type: stampede)
-  2. Generate Hindi voice alert (Google TTS)
-  3. Broadcast to ALL socket clients (alert:emergency + alert:voice)
-  4. Dijkstra route to safe exit zones (J, I, G)
-  5. Emit route:update to users in affected zone
-  6. Auto-assign nearest available volunteer (emergency_handling)
-  7. Notify police + medical rooms via socket
-```
-
----
-
-## 🗺️ Zone Map (Kumbh Mela Layout)
-
-| Zone | Name | Type | Capacity |
-|------|------|------|----------|
-| A | Sangam Ghat (Main) | Ghat | 5,000 |
-| B | Triveni Ghat | Ghat | 4,000 |
-| C | Ram Ghat | Ghat | 3,500 |
-| D | Market Area North | Market | 6,000 |
-| E | Central Corridor | Corridor | 8,000 |
-| F | Camp Area West | Camp | 10,000 |
-| G | Medical Hub | Medical | 2,000 |
-| H | Volunteer Center | Admin | 1,500 |
-| I | Entry Gate Alpha | Entry | 3,000 |
-| J | Parking & Exit | Exit | 15,000 |
-
----
-
-## ⚙️ Environment Variables
-
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | 5000 | Server port |
-| `FIREBASE_API_KEY` | — | Required for login simulation |
-| `FIREBASE_SERVICE_ACCOUNT` | — | Base64 Service Account (Optional) |
-| `ML_SERVICE_URL` | http://localhost:8000 | FastAPI ML service |
-| `STAMPEDE_RISK_THRESHOLD` | 0.75 | ML risk score threshold (0–1) |
-
----
-
-## 🐳 Docker Services
-
-| Service | Image | Port |
-|---------|-------|------|
-| `backend` | Node 20 Alpine | 5000 |
-| `mongo` | mongo:7.0 | 27017 |
-| `ml_service` | Python FastAPI stub | 8000 |
-
----
-
-## 🧰 Tech Stack
-
-| Layer | Technology |
-|-------|------------|
-| Runtime | Node.js 24 |
-| Framework | Express.js |
-| Database | Firebase Firestore |
-| Real-time | Socket.io 4 |
-| Auth | Firebase Admin SDK |
-| ML Integration | Python (REST) |
-| Routing Algo | Dijkstra |
-| Voice TTS | Google Translate TTS |
-| Logging | Winston |
-| Deployment | Docker + Compose |
+*Note: Ensure your `serviceAccountKey.json` is present for the backend container.*

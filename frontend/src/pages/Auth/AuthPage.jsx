@@ -46,7 +46,9 @@ const AuthPage = () => {
       }
       navigate(getRedirectPath(user.role));
     } catch (err) {
-      setError(err.response?.data?.message || 'Authentication failed. Please try again.');
+      const responseData = err.response?.data;
+      const errorMessage = responseData?.message || (responseData?.errors?.[0]?.msg) || 'Authentication failed. Please try again.';
+      setError(errorMessage);
     } finally {
       setLoading(false);
     }
